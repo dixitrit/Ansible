@@ -1,0 +1,47 @@
+---
+##########Playbook for deleting the multiple users from the list of servers and storing them in a csv file#################
+- name: Delete Users and Store Names in CSV
+  hosts: test
+  become: yes
+  remote_user: ec2-user
+  gather_facts: false
+  vars:
+    users:
+      - user1
+	    - user2
+	    - user3
+	    - user4
+####The below csv file should be created at th given path ##############	  
+    local_csv_file: ./deleted_users_sand_new.csv
+
+  tasks:
+    - name: Delete list of users
+      user:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ users }}"
+      register: deleted_user_result
+      changed_when: deleted_user_result.changed
+
+    - name: Deleting directory
+      file:
+        path: "/home/{{ item }}"
+        state: absent
+      loop: "{{ users }}"
+      register: removed_users
+      ignore_errors: yes
+
+    - name: Gather deleted user names
+      set_fact:
+        deleted_users_list: "{{ deleted_users_list | default([]) + [item.item] }}"
+      loop: "{{ deleted_user_result.results }}"
+      when: item.changed
+
+    - name: Create or append to local CSV file
+      lineinfile:
+        path: "{{ local_csv_file }}"
+        create: no
+        line: "{{ inventory_hostname }}, {{ deleted_users_list | join(', ') }}"
+        insertafter: EOF
+      delegate_to: localhost
+      when: deleted_user_result.results | default([]) | length > 0
