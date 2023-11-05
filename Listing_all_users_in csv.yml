@@ -1,0 +1,22 @@
+---
+####Getting list of users
+- name: Get List of Users in /home Directory
+  hosts: test
+  gather_facts: false
+  remote_user: ansible
+  become: yes
+  tasks:
+    - name: Get directory list
+      shell: "find /home/* -maxdepth 0 -type d -printf '%f\n'"
+      register: directory_list_output
+      changed_when: false
+
+    - name: Store directory list in a variable
+      set_fact:
+         directory_list: "{{ directory_list_output.stdout_lines | join(',') }}"
+
+    - name: Append directory list to CSV file
+      lineinfile:
+         path: "./user_ritesh.csv"
+         line: "{{ inventory_hostname }}, {{ directory_list }}"
+      delegate_to: localhost
